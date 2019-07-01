@@ -11,9 +11,10 @@ module AsJsonRepresentations
         def as_json(options={})
           subject = self
           # call supported methods of ActiveRecord::QueryMethods
-          [:includes].each do |method|
+          %i[includes eager_load].each do |method|
             next unless respond_to? method
 
+            # TODO: Con subject&.model no pasan los tests.
             representation = if subject&.model&.respond_to?(:representations)
                                subject&.model&.representations&.dig(options[:representation])
                              else

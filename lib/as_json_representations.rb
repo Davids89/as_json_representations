@@ -13,7 +13,7 @@ module AsJsonRepresentations
       parent_representation_name = options[:extend] == true ? name : options[:extend]
       parent_representation = parent_entity.representations[parent_representation_name]
 
-      [:includes].each do |option|
+      %i[includes eager_load].each do |option|
         next unless (parent_option = parent_representation[option])
 
         @representations[name][option] = (options[option] || []) + parent_option
