@@ -25,7 +25,15 @@ RSpec.describe AsJsonRepresentations do
         end
 
         # you can extend another representations and use includes (ActiveRecord)
-        representation :private, extend: :public, includes: [:city] do
+        representation :private_includes, extend: :public, includes: [:city] do
+          {
+            age: age,
+            city: city.as_json(representation: :basic)
+          }
+        end
+
+        # you can extend another representations and use eager_load (ActiveRecord)
+        representation :private_eager_load, extend: :public, eager_load: [:city] do
           {
             age: age,
             city: city.as_json(representation: :basic)
@@ -59,32 +67,40 @@ RSpec.describe AsJsonRepresentations do
       @result = {full_name: 'John Doe', age: 30, date: '2017-12-21', city: {name: 'Madrid'}}
     end
 
-    context 'when use as_json method' do
-      context 'when pass representation as symbol' do
-        it 'renders correctly representations' do
-          expect(@user.as_json(representation: :private, date: '2017-12-21')).to eq(@result)
+    %i[includes eager_load].each do |arg|
+      context "when used #{arg}" do
+        let(:representation) { "private_#{arg}".to_sym }
+
+        context 'when use as_json method' do
+          context 'when pass representation as symbol' do
+            it 'renders correctly representations' do
+              expect(@user.as_json(representation: representation, date: '2017-12-21'))
+                .to eq(@result)
+            end
+          end
+
+          context 'when pass representation as string' do
+            it 'renders correctly representations' do
+              expect(@user.as_json(representation: representation, date: '2017-12-21'))
+                .to eq(@result)
+            end
+          end
         end
-      end
 
-      context 'when pass representation as string' do
-        it 'renders correctly representations' do
-          expect(@user.as_json(representation: 'private', date: '2017-12-21')).to eq(@result)
+        context 'when use representation method' do
+          it 'renders correctly representations' do
+            expect(@user.representation(representation, date: '2017-12-21')).to eq(@result)
+          end
         end
-      end
-    end
 
-    context 'when use representation method' do
-      it 'renders correctly representations' do
-        expect(@user.representation(:private, date: '2017-12-21')).to eq(@result)
-      end
-    end
-
-    context 'when use representation method with an array' do
-      it 'renders correctly representations' do
-        query = [@user]
-        allow(query).to receive(:includes).and_return(query)
-        expect(query).to receive(:includes).with(:city)
-        expect(query.representation(:private, date: '2017-12-21')).to eq([@result])
+        context 'when use representation method with an array' do
+          it 'renders correctly representations' do
+            query = [@user]
+            allow(query).to receive(arg).and_return(query)
+            expect(query).to receive(arg).with(:city)
+            expect(query.representation(representation, date: '2017-12-21')).to eq([@result])
+          end
+        end
       end
     end
   end
@@ -137,7 +153,7 @@ RSpec.describe AsJsonRepresentations do
           {name: name}
         end
 
-        representation :b, includes: %i[test2 test3] do
+        representation :b, includes: %i[test2 test3], eager_load: %i[test4] do
           {name: name}
         end
 
@@ -153,7 +169,7 @@ RSpec.describe AsJsonRepresentations do
           {color: color}
         end
 
-        representation :b, extend: true, includes: %i[test] do
+        representation :b, extend: true, includes: %i[test], eager_load: %i[test] do
           {color: color}
         end
       end
@@ -215,10 +231,24 @@ RSpec.describe AsJsonRepresentations do
       query.representation(:b)
     end
 
+    it 'uses eager_load with collection' do
+      query = [Parent.new('gchild')]
+      allow(query).to receive(:eager_load).and_return(query)
+      expect(query).to receive(:eager_load).with(:test4)
+      query.representation(:b)
+    end
+
     it 'uses includes with inheritance' do
       query = [Child.new('gchild', 'blue')]
       allow(query).to receive(:includes).and_return(query)
       expect(query).to receive(:includes).with(:test).with(:test2).with(:test3)
+      query.representation(:b)
+    end
+
+    it 'uses eager_load with inheritance' do
+      query = [Child.new('gchild', 'blue')]
+      allow(query).to receive(:eager_load).and_return(query)
+      expect(query).to receive(:eager_load).with(:test).with(:test4)
       query.representation(:b)
     end
   end
